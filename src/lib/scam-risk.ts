@@ -89,7 +89,7 @@ export function calculateListingRisk(property: Property): RiskAnalysisResult {
   let recommendation = 'Listing appears consistent with standard verified rental indicators.';
   if (riskLevel === 'HIGH') {
     recommendation =
-      'NestMate recommends verifying the property and landlord identity through an accredited PRTB registry before sending any deposit or personal documentation.';
+      'Finderr recommends verifying the property and landlord identity through an accredited PRTB registry before sending any deposit or personal documentation.';
   } else if (riskLevel === 'MEDIUM') {
     recommendation =
       'Exercise standard due diligence. Request an in-person viewing and lease agreement prior to transferring funds.';

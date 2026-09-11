@@ -40,7 +40,7 @@ export const ScamShieldBanner: React.FC<ScamShieldBannerProps> = ({
           </div>
           <div>
             <div className="text-[11px] font-extrabold uppercase tracking-wider text-rose-700">
-              NestMate Scam Shield
+              Finderr Scam Shield
             </div>
             <h3 className="font-display font-extrabold text-lg text-rose-950">
               {riskResult.riskLevel} RENTAL RISK

@@ -65,7 +65,7 @@ app.post('/api/extract-preferences', async (req, res) => {
       contents: `Extract housing preferences from this student/renter description into structured JSON:
 "${userText}"`,
       config: {
-        systemInstruction: `You are NestMate's Housing Preference Extraction Engine.
+        systemInstruction: `You are Finderr's Housing Preference Extraction Engine.
 Extract the user's budget ceiling in Euros (numeric), destination college or area, maximum acceptable commute in minutes, and normalized importance weights (0.0 to 1.0) for dimensions: affordability, commute, quietness, naturalLight, desk, space, socialAtmosphere, publicTransport.
 Also include dealbreakers (e.g. smoking, pets) and a concise summary sentence.
 If values are not mentioned, infer sensible defaults for a Dublin student (budget around 900, commute around 35).`,
@@ -140,8 +140,8 @@ Natural light score: ${property.naturalLightScore}/100 (User learned weight: ${d
 Trade-off: ${property.tradeOff || 'none'}
 Overall match: ${matchScore?.score || 96}%`,
       config: {
-        systemInstruction: `You are NestMate's Match Explainer.
-Write a 2-sentence conversational "NestMate's take" explaining why this fits what the user values (especially learned choices like quietness and natural light) and highlighting the genuine trade-off.
+        systemInstruction: `You are Finderr's Match Explainer.
+Write a 2-sentence conversational "Finderr's take" explaining why this fits what the user values (especially learned choices like quietness and natural light) and highlighting the genuine trade-off.
 CRITICAL: Only reference facts from the property data provided. Never invent features. Keep it warm, objective, and under 45 words.`
       }
     });
@@ -160,7 +160,7 @@ app.post('/api/analyze-risk', async (req, res) => {
 
   const fallback = {
     riskSummary: 'Scam Shield flagged multiple critical risk indicators: unusually low pricing for central Dublin, urgency to transfer a deposit today, lack of physical viewing, and communications routed off-platform to an unverified number.',
-    advisory: 'NestMate strongly advises against sending deposits or private identification prior to an in-person viewing and verified lease agreement.'
+    advisory: 'Finderr strongly advises against sending deposits or private identification prior to an in-person viewing and verified lease agreement.'
   };
 
   try {
@@ -176,7 +176,7 @@ Listing: "${property?.title}" - €${property?.monthlyRent}/mo
 Description: "${property?.description}"
 Known flags: ${JSON.stringify(property?.riskSignals || [])}`,
       config: {
-        systemInstruction: `You are NestMate Scam Shield AI.
+        systemInstruction: `You are Finderr Scam Shield AI.
 Analyze the listing text for urgency language, suspicious payment terms, or evasion tactics.
 CRITICAL SAFETY DIRECTIVE:
 1. Never definitively accuse anyone of fraud or crime (do NOT say "This is a scam").
@@ -198,6 +198,103 @@ CRITICAL SAFETY DIRECTIVE:
   }
 });
 
+// FEATURE 4: Landlord AI Listing Drafter & DNA Analyzer
+app.post('/api/landlord/generate-listing', async (req, res) => {
+  const { notes, area, baseRent } = req.body;
+
+  const fallback = {
+    title: 'Sunny Garden Double Room in Glasnevin',
+    area: area || 'Glasnevin',
+    monthlyRent: Number(baseRent) || 860,
+    utilitiesEstimate: 45,
+    description: notes?.trim() || 'Bright, tranquil double bedroom overlooking private rear garden. South-facing window provides generous natural sunlight. Includes large study desk, ergonomic chair, and wardrobe.',
+    quietnessScore: 88,
+    naturalLightScore: 92,
+    roomSizeScore: 78,
+    socialScore: 40,
+    publicTransportScore: 82,
+    desk: true,
+    furnished: true,
+    amenities: ['High-speed Wi-Fi', 'Garden Access', 'Study Desk', 'Washing Machine', 'Bicycle Storage'],
+    tradeOff: 'Strict quiet hours after 10 PM; kitchen is shared with 2 other postgraduate residents.',
+    targetStudentProfile: 'Ideal for postgraduate or final-year university student seeking undisturbed study space.'
+  };
+
+  try {
+    const ai = getGeminiClient();
+    if (!ai || !notes?.trim()) {
+      return res.json({ listing: fallback, source: 'deterministic_fallback' });
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: `You are Finderr's Landlord Assistant. Convert these informal landlord rental notes into a polished student rental listing with objective housing metrics:
+Notes: "${notes}"
+Area hint: ${area || 'Dublin'}
+Rent hint: €${baseRent || 860}`,
+      config: {
+        systemInstruction: `Extract and synthesize a structured listing draft for the Dublin student rental market.
+Generate realistic numerical scores (0 to 100) for quietnessScore, naturalLightScore, roomSizeScore, socialScore, publicTransportScore based on the description clues.
+Also provide a realistic tradeOff (e.g. compact kitchen, quiet hours rule, or stairs) to ensure transparency for student renters.`,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            area: { type: Type.STRING },
+            monthlyRent: { type: Type.NUMBER },
+            utilitiesEstimate: { type: Type.NUMBER },
+            description: { type: Type.STRING },
+            quietnessScore: { type: Type.NUMBER },
+            naturalLightScore: { type: Type.NUMBER },
+            roomSizeScore: { type: Type.NUMBER },
+            socialScore: { type: Type.NUMBER },
+            publicTransportScore: { type: Type.NUMBER },
+            desk: { type: Type.BOOLEAN },
+            furnished: { type: Type.BOOLEAN },
+            amenities: { type: Type.ARRAY, items: { type: Type.STRING } },
+            tradeOff: { type: Type.STRING },
+            targetStudentProfile: { type: Type.STRING }
+          },
+          required: ['title', 'area', 'monthlyRent', 'description', 'quietnessScore', 'naturalLightScore', 'desk', 'amenities', 'tradeOff']
+        }
+      }
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    return res.json({ listing: parsed.title ? parsed : fallback, source: 'gemini' });
+  } catch (err: any) {
+    console.warn('Landlord listing generation error, using fallback:', err?.message || err);
+    return res.json({ listing: fallback, source: 'fallback_on_error' });
+  }
+});
+
+// FEATURE 5: Landlord Portal Stats & Profile
+app.get('/api/landlord/profile', (req, res) => {
+  res.json({
+    landlord: {
+      id: 'landlord_elena',
+      display_name: 'Elena Gallagher',
+      photo_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
+      description: 'DCU alumna & local home owner in Glasnevin. Renting quiet, sunlit rooms to respectful postgraduate students for 6 years.',
+      contact: {
+        email: 'elena.glasnevin@finderr-verified.ie',
+        phone: '+353 1 837 0122'
+      },
+      verified: true,
+      prtb_registration: 'RTB-2024-88492-V',
+      response_rate: '98%',
+      avg_response_time: '1.4 hours'
+    },
+    metrics: {
+      activeListingsCount: 1,
+      totalApplicants: 4,
+      highCompatibilityCount: 2, // 90%+ compatibility
+      scheduledViewings: 1
+    }
+  });
+});
+
 // Vite middleware or Static serving
 async function setupServer() {
   if (process.env.NODE_ENV !== 'production') {
@@ -215,7 +312,7 @@ async function setupServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`NestMate server listening at http://0.0.0.0:${PORT}`);
+    console.log(`Finderr server listening at http://0.0.0.0:${PORT}`);
   });
 }
 

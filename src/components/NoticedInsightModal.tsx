@@ -62,7 +62,7 @@ export const NoticedInsightModal: React.FC<NoticedInsightModalProps> = ({
               {/* Header Badge */}
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 text-amber-900 w-fit text-xs font-bold mb-4">
                 <Brain className="w-4 h-4 text-amber-600" />
-                <span>NestMate noticed something</span>
+                <span>Finderr noticed something</span>
               </div>
 
               {/* Title & Core Discrepancy Insight */}

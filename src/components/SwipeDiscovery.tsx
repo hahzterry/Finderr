@@ -67,7 +67,7 @@ export const SwipeDiscovery: React.FC<SwipeDiscoveryProps> = ({
             You've explored all homes!
           </h3>
           <p className="text-stone-600 text-sm mb-6">
-            Review your saved top matches or inspect how NestMate adapted your Housing DNA.
+            Review your saved top matches or inspect how Finderr adapted your Housing DNA.
           </p>
           {onResetDeck && (
             <button

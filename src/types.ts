@@ -153,3 +153,38 @@ export interface RiskAnalysisResult {
   recommendation: string;
   aiSummary?: string;
 }
+
+export interface TenantApplicant {
+  id: string;
+  propertyId: string;
+  applicantName: string;
+  program: string; // e.g. "MSc Computer Science, DCU"
+  avatarUrl?: string;
+  compatibilityScore: number; // 0-100
+  compatibilitySummary: string;
+  dnaMatchHighlight: string;
+  status: 'pending' | 'viewing_invited' | 'approved' | 'declined';
+  appliedAt: string;
+  bio: string;
+  verifiedStudent: boolean;
+  budgetMax: number;
+  cleanlinessHabit: string;
+}
+
+export interface GeneratedListingDraft {
+  title: string;
+  area: string;
+  monthlyRent: number;
+  utilitiesEstimate: number;
+  description: string;
+  quietnessScore: number;
+  naturalLightScore: number;
+  roomSizeScore: number;
+  socialScore: number;
+  publicTransportScore: number;
+  desk: boolean;
+  furnished: boolean;
+  amenities: string[];
+  tradeOff: string;
+  targetStudentProfile: string;
+}

@@ -45,7 +45,7 @@ export const MyDNAView: React.FC<MyDNAViewProps> = ({
         </p>
       </div>
 
-      {/* Comparison: What You Told Us vs What NestMate Learned */}
+      {/* Comparison: What You Told Us vs What Finderr Learned */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* What you told us */}
         <div className="bg-white rounded-3xl border border-stone-200/80 p-6 shadow-xs">
@@ -77,11 +77,11 @@ export const MyDNAView: React.FC<MyDNAViewProps> = ({
           </div>
         </div>
 
-        {/* What NestMate learned */}
+        {/* What Finderr learned */}
         <div className="bg-amber-50/70 rounded-3xl border border-amber-200/80 p-6 shadow-xs relative overflow-hidden">
           <div className="flex items-center gap-2 text-amber-900 text-xs font-bold uppercase tracking-wider mb-4">
             <Brain className="w-4 h-4 text-amber-600" />
-            <span>What NestMate learned</span>
+            <span>What Finderr learned</span>
           </div>
 
           {hasLearnedUpdates ? (

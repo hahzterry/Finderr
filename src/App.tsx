@@ -34,13 +34,22 @@ import { BestMatchRevealModal } from './components/BestMatchRevealModal';
 import { PropertyDetailModal } from './components/PropertyDetailModal';
 import { MatchesView } from './components/MatchesView';
 import { MyDNAView } from './components/MyDNAView';
+import { LandlordPortal } from './components/LandlordPortal';
 
 type AppStep = 'landing' | 'onboarding' | 'dna_preview' | 'discover';
 
 export default function App() {
+  // User Persona Role: 'tenant' (Student) or 'landlord'
+  const [userRole, setUserRole] = useState<'tenant' | 'landlord'>(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const roleParam = urlParams.get('role');
+    if (roleParam === 'landlord' || roleParam === 'tenant') return roleParam;
+    return (localStorage.getItem('finderr_user_role') as 'tenant' | 'landlord') || 'tenant';
+  });
+
   // Navigation & Screen Steps
   const [step, setStep] = useState<AppStep>(() => {
-    const saved = localStorage.getItem('nestmate_current_step') as AppStep | null;
+    const saved = (localStorage.getItem('finderr_current_step') || localStorage.getItem('nestmate_current_step')) as AppStep | null;
     return saved && ['landing', 'onboarding', 'dna_preview', 'discover'].includes(saved)
       ? saved
       : 'landing';
@@ -56,14 +65,14 @@ export default function App() {
 
   // Preference Learning State
   const [hasLearnedUpdates, setHasLearnedUpdates] = useState<boolean>(() => {
-    return localStorage.getItem('nestmate_has_learned_updates') === 'true';
+    return (localStorage.getItem('finderr_has_learned_updates') || localStorage.getItem('nestmate_has_learned_updates')) === 'true';
   });
   const [activeInsight, setActiveInsight] = useState<LearnedInsight | null>(null);
 
   // Best Match Reveal State
   const [bestMatchModal, setBestMatchModal] = useState<PropertyMatchResult | null>(null);
   const [hasRevealedBestMatch, setHasRevealedBestMatch] = useState<boolean>(() => {
-    return localStorage.getItem('nestmate_best_match_revealed') === 'true';
+    return (localStorage.getItem('finderr_best_match_revealed') || localStorage.getItem('nestmate_best_match_revealed')) === 'true';
   });
 
   // Property Detail Inspection Modal
@@ -83,7 +92,7 @@ export default function App() {
 
   // Sync state to LocalStorage
   useEffect(() => {
-    localStorage.setItem('nestmate_current_step', step);
+    localStorage.setItem('finderr_current_step', step);
   }, [step]);
 
   useEffect(() => {
@@ -103,12 +112,16 @@ export default function App() {
   }, [likedIds]);
 
   useEffect(() => {
-    localStorage.setItem('nestmate_has_learned_updates', String(hasLearnedUpdates));
+    localStorage.setItem('finderr_has_learned_updates', String(hasLearnedUpdates));
   }, [hasLearnedUpdates]);
 
   useEffect(() => {
-    localStorage.setItem('nestmate_best_match_revealed', String(hasRevealedBestMatch));
+    localStorage.setItem('finderr_best_match_revealed', String(hasRevealedBestMatch));
   }, [hasRevealedBestMatch]);
+
+  useEffect(() => {
+    localStorage.setItem('finderr_user_role', userRole);
+  }, [userRole]);
 
   // Deterministically rank all properties based on current preferences & DNA
   const rankedResults = useMemo(() => {
@@ -283,76 +296,90 @@ export default function App() {
         }}
         matchesCount={likedIds.length}
         onResetDemo={handleResetDemo}
-        onNavigateHome={() => setStep('landing')}
+        onNavigateHome={() => {
+          setUserRole('tenant');
+          setStep('landing');
+        }}
         hasLearnedUpdates={hasLearnedUpdates}
+        userRole={userRole}
+        setUserRole={setUserRole}
       />
 
-      {/* Main Content Router */}
+      {/* Main Content Router: Landlord Portal OR Tenant Flow */}
       <main className="flex-1 w-full max-w-5xl mx-auto">
-        {step === 'landing' && (
-          <LandingHero onStart={() => setStep('onboarding')} />
-        )}
-
-        {step === 'onboarding' && (
-          <NaturalLanguageOnboarding
-            onPreferencesBuilt={(extractedPrefs, extractedDna) => {
-              setPreferences(extractedPrefs);
-              setDna(extractedDna);
-              setStep('dna_preview');
-            }}
-            onBackToLanding={() => setStep('landing')}
+        {userRole === 'landlord' ? (
+          <LandlordPortal
+            property={propertiesMap['prop_e'] || INITIAL_PROPERTIES[0]}
+            onSwitchToTenantView={() => setUserRole('tenant')}
           />
-        )}
-
-        {step === 'dna_preview' && (
-          <HousingDNAScreen
-            preferences={preferences}
-            dna={dna}
-            onConfirmDNA={updatedDna => {
-              setDna(updatedDna);
-              setStep('discover');
-              setActiveTab('discover');
-            }}
-            onEditPrompt={() => setStep('onboarding')}
-          />
-        )}
-
-        {step === 'discover' && (
+        ) : (
           <>
-            {activeTab === 'discover' && (
-              <SwipeDiscovery
-                currentMatch={currentMatchCard}
-                totalHomesCount={INITIAL_PROPERTIES.length}
-                currentIndex={interactions.length}
-                onLike={handleLike}
-                onPass={handlePass}
-                onOpenDetails={prop => setInspectingProperty(prop)}
-                onResetDeck={() => setInteractions([])}
+            {step === 'landing' && (
+              <LandingHero onStart={() => setStep('onboarding')} />
+            )}
+
+            {step === 'onboarding' && (
+              <NaturalLanguageOnboarding
+                onPreferencesBuilt={(extractedPrefs, extractedDna) => {
+                  setPreferences(extractedPrefs);
+                  setDna(extractedDna);
+                  setStep('dna_preview');
+                }}
+                onBackToLanding={() => setStep('landing')}
               />
             )}
 
-            {activeTab === 'matches' && (
-              <MatchesView
-                likedMatches={likedMatches}
-                onOpenDetails={prop => setInspectingProperty(prop)}
-                onNavigateDiscover={() => setActiveTab('discover')}
-              />
-            )}
-
-            {activeTab === 'dna' && (
-              <MyDNAView
+            {step === 'dna_preview' && (
+              <HousingDNAScreen
                 preferences={preferences}
                 dna={dna}
-                interactions={interactions}
-                hasLearnedUpdates={hasLearnedUpdates}
-                onResetDemo={handleResetDemo}
+                onConfirmDNA={updatedDna => {
+                  setDna(updatedDna);
+                  setStep('discover');
+                  setActiveTab('discover');
+                }}
+                onEditPrompt={() => setStep('onboarding')}
               />
+            )}
+
+            {step === 'discover' && (
+              <>
+                {activeTab === 'discover' && (
+                  <SwipeDiscovery
+                    currentMatch={currentMatchCard}
+                    totalHomesCount={INITIAL_PROPERTIES.length}
+                    currentIndex={interactions.length}
+                    onLike={handleLike}
+                    onPass={handlePass}
+                    onOpenDetails={prop => setInspectingProperty(prop)}
+                    onResetDeck={() => setInteractions([])}
+                  />
+                )}
+
+                {activeTab === 'matches' && (
+                  <MatchesView
+                    likedMatches={likedMatches}
+                    onOpenDetails={prop => setInspectingProperty(prop)}
+                    onNavigateDiscover={() => setActiveTab('discover')}
+                  />
+                )}
+
+                {activeTab === 'dna' && (
+                  <MyDNAView
+                    preferences={preferences}
+                    dna={dna}
+                    interactions={interactions}
+                    hasLearnedUpdates={hasLearnedUpdates}
+                    onResetDemo={handleResetDemo}
+                  />
+                )}
+              </>
             )}
           </>
         )}
       </main>
 
-      {/* THE CRITICAL MOMENT MODAL: NestMate noticed something */}
+      {/* THE CRITICAL MOMENT MODAL: Finderr noticed something */}
       {activeInsight && (
         <NoticedInsightModal
           insight={activeInsight}
@@ -407,7 +434,7 @@ export default function App() {
       <footer className="border-t border-stone-200/60 py-4 px-4 text-center text-xs text-stone-500">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>
-            <strong>NestMate</strong> by Finderr • AI-Powered Student Housing Discovery
+            <strong>Finderr</strong> • AI-Powered Housing Discovery
           </span>
           <span className="text-stone-400">
             Dublin Rental Dataset (DCU / Glasnevin / Drumcondra)

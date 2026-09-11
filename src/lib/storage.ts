@@ -2,6 +2,17 @@ import { HousingPreferences, HousingDNA, SwipeInteraction, Property } from '../t
 import { INITIAL_PROPERTIES } from '../data/properties';
 
 const STORAGE_KEYS = {
+  PREFERENCES: 'finderr_preferences',
+  DNA: 'finderr_dna',
+  INTERACTIONS: 'finderr_interactions',
+  LIKED_IDS: 'finderr_liked_ids',
+  PASSED_IDS: 'finderr_passed_ids',
+  STEP: 'finderr_current_step',
+  INSIGHT_TRIGGERED: 'finderr_insight_triggered',
+  BEST_MATCH_REVEALED: 'finderr_best_match_revealed'
+};
+
+const LEGACY_STORAGE_KEYS = {
   PREFERENCES: 'nestmate_preferences',
   DNA: 'nestmate_dna',
   INTERACTIONS: 'nestmate_interactions',
@@ -11,6 +22,10 @@ const STORAGE_KEYS = {
   INSIGHT_TRIGGERED: 'nestmate_insight_triggered',
   BEST_MATCH_REVEALED: 'nestmate_best_match_revealed'
 };
+
+function getItem(key: string, legacyKey: string): string | null {
+  return localStorage.getItem(key) || localStorage.getItem(legacyKey);
+}
 
 export const DEFAULT_PREFERENCES: HousingPreferences = {
   budgetMax: 900,
@@ -44,7 +59,7 @@ export const DEFAULT_DNA: HousingDNA = {
 
 export function loadStoredPreferences(): HousingPreferences {
   try {
-    const item = localStorage.getItem(STORAGE_KEYS.PREFERENCES);
+    const item = getItem(STORAGE_KEYS.PREFERENCES, LEGACY_STORAGE_KEYS.PREFERENCES);
     return item ? JSON.parse(item) : DEFAULT_PREFERENCES;
   } catch {
     return DEFAULT_PREFERENCES;
@@ -61,7 +76,7 @@ export function saveStoredPreferences(prefs: HousingPreferences): void {
 
 export function loadStoredDNA(): HousingDNA {
   try {
-    const item = localStorage.getItem(STORAGE_KEYS.DNA);
+    const item = getItem(STORAGE_KEYS.DNA, LEGACY_STORAGE_KEYS.DNA);
     return item ? JSON.parse(item) : DEFAULT_DNA;
   } catch {
     return DEFAULT_DNA;
@@ -78,7 +93,7 @@ export function saveStoredDNA(dna: HousingDNA): void {
 
 export function loadStoredInteractions(): SwipeInteraction[] {
   try {
-    const item = localStorage.getItem(STORAGE_KEYS.INTERACTIONS);
+    const item = getItem(STORAGE_KEYS.INTERACTIONS, LEGACY_STORAGE_KEYS.INTERACTIONS);
     return item ? JSON.parse(item) : [];
   } catch {
     return [];
@@ -95,7 +110,7 @@ export function saveStoredInteractions(interactions: SwipeInteraction[]): void {
 
 export function loadStoredLikedIds(): string[] {
   try {
-    const item = localStorage.getItem(STORAGE_KEYS.LIKED_IDS);
+    const item = getItem(STORAGE_KEYS.LIKED_IDS, LEGACY_STORAGE_KEYS.LIKED_IDS);
     return item ? JSON.parse(item) : [];
   } catch {
     return [];
@@ -113,6 +128,7 @@ export function saveStoredLikedIds(ids: string[]): void {
 export function resetDemoState(): void {
   try {
     Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
+    Object.values(LEGACY_STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
   } catch (e) {
     console.error('Failed to clear localStorage', e);
   }

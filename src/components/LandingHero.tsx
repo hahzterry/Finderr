@@ -41,7 +41,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({ onStart }) => {
           transition={{ delay: 0.2 }}
           className="text-stone-600 text-lg sm:text-xl font-normal max-w-2xl mx-auto mb-8 leading-relaxed"
         >
-          Tell NestMate what matters to you. We’ll learn your preferences and help you find homes that actually fit.
+          Tell Finderr what matters to you. We’ll learn your preferences and help you find homes that actually fit.
         </motion.p>
 
         {/* Primary CTA */}
@@ -86,7 +86,7 @@ export const LandingHero: React.FC<LandingHeroProps> = ({ onStart }) => {
             </div>
             <h3 className="font-semibold text-stone-900 text-base mb-1">Learns What You Value</h3>
             <p className="text-xs text-stone-600 leading-relaxed">
-              When your swipe choices reveal hidden preferences, NestMate adapts your DNA and finds 96%+ matches.
+              When your swipe choices reveal hidden preferences, Finderr adapts your DNA and finds 96%+ matches.
             </p>
           </div>
 

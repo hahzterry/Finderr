@@ -51,7 +51,7 @@ export const HousingDNAScreen: React.FC<HousingDNAScreenProps> = ({
               Your Housing DNA
             </h2>
             <p className="text-stone-500 text-sm mt-1">
-              Here is how NestMate balances your priorities before discovering listings.
+              Here is how Finderr balances your priorities before discovering listings.
             </p>
           </div>
 

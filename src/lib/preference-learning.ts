@@ -48,7 +48,7 @@ export function analyzeSwipeInteractions(
 
     return {
       hasInsight: true,
-      title: '🧠 NestMate noticed something',
+      title: '🧠 Finderr noticed something',
       message: 'You said commute was one of your biggest priorities, but you’ve consistently preferred quieter, brighter homes even when they’re slightly farther away.',
       discovery: 'We think quietness and natural light matter more to you than you initially expected.',
       previousDna: currentDna,

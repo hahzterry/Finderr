@@ -141,10 +141,10 @@ export const BestMatchRevealModal: React.FC<BestMatchRevealModalProps> = ({
             </p>
           </div>
 
-          {/* NestMate's Take */}
+          {/* Finderr's Take */}
           <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200/60">
             <h5 className="text-[11px] font-bold uppercase tracking-wider text-stone-500 mb-1">
-              NestMate’s take
+              Finderr’s take
             </h5>
             <p className="text-stone-700 text-xs italic leading-relaxed">
               “You’re giving up some kitchen space, but this strongly matches what you’ve consistently chosen: quietness, natural light and a manageable commute.”

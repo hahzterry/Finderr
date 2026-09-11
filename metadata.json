@@ -1,0 +1,7 @@
+{
+  "name": "NestMate — Finderr Housing Discovery",
+  "description": "AI-powered student and renter housing discovery platform that learns your true preferences from choices, explains trade-offs, and highlights rental risk signals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

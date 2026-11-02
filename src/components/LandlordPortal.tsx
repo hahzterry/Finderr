@@ -229,7 +229,9 @@ export const LandlordPortal: React.FC<LandlordPortalProps> = ({
                             {app.applicantName}
                           </span>
                           {app.verifiedStudent && (
-                            <GraduationCap className="w-3.5 h-3.5 text-blue-600" title="Verified DCU Student" />
+                            <span title="Verified DCU Student">
+                            <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
+                            </span>
                           )}
                         </div>
                         <div className="text-[11px] text-stone-500">

@@ -13,7 +13,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import {
   getPaymentusStatus,
-} from "./server/paymentus";
+} from "./server/paymentus.js";
 
 // ============================================
 // PAYBILLS.RENT — EXPRESS SERVER

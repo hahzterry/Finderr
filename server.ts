@@ -58,6 +58,7 @@ type Bill = {
   category: BillCategory;
   title: string;
   story: string;
+  tiktokUrl?: string;
   amountCents: number;
   dueDate: string;
   status: BillStatus;
@@ -508,6 +509,8 @@ app.post(
       category,
       title,
       story,
+      tiktokUrl,
+      videoConsent,
       amount,
       dueDate,
       billerName,
@@ -535,7 +538,6 @@ app.post(
       !title.trim() ||
       title.length > 100 ||
       typeof story !== "string" ||
-      !story.trim() ||
       story.length > 500 ||
       typeof billerName !== "string" ||
       !billerName.trim() ||
@@ -545,6 +547,22 @@ app.post(
         error: "Invalid bill information",
       });
     }
+
+    // Only accept canonical public TikTok video URLs. No shorteners or arbitrary hosts.
+    let safeTikTokUrl: string | undefined;
+    if (tiktokUrl !== undefined && tiktokUrl !== "") {
+      if (typeof tiktokUrl !== "string" || tiktokUrl.length > 300 || videoConsent !== true) {
+        return res.status(400).json({error:"TikTok video consent and a valid URL are required"});
+      }
+      try {
+        const u = new URL(tiktokUrl);
+        if (u.protocol !== "https:" || !["tiktok.com", "www.tiktok.com", "m.tiktok.com"].includes(u.hostname) || !/^\/@[\w.]+\/video\/\d{15,25}\/?$/.test(u.pathname)) throw new Error("invalid");
+        safeTikTokUrl = `https://www.tiktok.com${u.pathname.replace(/\/$/, "")}`;
+      } catch {
+        return res.status(400).json({error:"Enter a full public TikTok video URL"});
+      }
+    }
+    if (!story.trim() && !safeTikTokUrl) return res.status(400).json({error:"Add a written story or a TikTok video"});
 
     if (!isValidDate(dueDate)) {
       return res.status(400).json({
@@ -567,6 +585,7 @@ app.post(
       category,
       title: cleanText(title, 100),
       story: cleanText(story, 500),
+      ...(safeTikTokUrl ? {tiktokUrl: safeTikTokUrl} : {}),
       amountCents,
       dueDate,
       billerName: cleanText(

@@ -5,11 +5,11 @@ import express, {
   type NextFunction,
 } from "express";
 import path from "path";
-import fs from "fs";
 import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import Stripe from "stripe";
 import "dotenv/config";
+import { createClient } from "@supabase/supabase-js";
 
 import {
   getPaymentusStatus,
@@ -119,79 +119,58 @@ const samples: Bill[] = [
 ];
 
 // ============================================
-// LOCAL DEVELOPMENT STORAGE
+// SUPABASE SERVER-SIDE PERSISTENCE
 // ============================================
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required on the server");
+}
+const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
 
-// IMPORTANT:
-// JSON storage is for local development only.
-// Production requires a transactional database.
-
-const dataFile = path.join(
-  process.cwd(),
-  "paybills-dev-data.json"
-);
-
-const paymentFile = path.join(
-  process.cwd(),
-  "paybills-dev-payments.json"
-);
-
-function readJsonFile<T>(
-  file: string,
-  fallback: T
-): T {
-  try {
-    if (!fs.existsSync(file)) {
-      return fallback;
-    }
-
-    return JSON.parse(
-      fs.readFileSync(file, "utf8")
-    ) as T;
-  } catch (error) {
-    console.error("Storage read error:", error);
-    return fallback;
-  }
+function fromRow(row: any): Bill {
+  return {
+    id: row.id, category: row.category, title: row.title,
+    story: row.story || "", tiktokUrl: row.tiktok_url || undefined,
+    amountCents: row.amount_cents, dueDate: row.due_date,
+    status: row.status, billerName: row.biller_name || undefined,
+    sponsorCount: row.sponsor_count, createdAt: row.created_at,
+    verifiedAt: row.verified_at || undefined, paidAt: row.paid_at || undefined,
+  };
 }
 
-function writeJsonFile<T>(
-  file: string,
-  data: T
-): void {
-  const temporaryFile = `${file}.${crypto.randomUUID()}.tmp`;
+async function readBills(): Promise<Bill[]> {
+  const { data, error } = await db
+    .from("paybills_requests")
+    .select("*")
+    .in("status", ["verified", "demo"])
+    .order("created_at", { ascending: false })
+    .limit(500);
 
-  fs.writeFileSync(
-    temporaryFile,
-    JSON.stringify(data, null, 2),
-    { mode: 0o600 }
-  );
+  if (error) throw error;
 
-  fs.renameSync(temporaryFile, file);
+  return [...samples, ...(data || []).map(fromRow)];
 }
-
-function readBills(): Bill[] {
-  const stored = readJsonFile<Bill[]>(
-    dataFile,
-    []
-  );
-
-  return [...samples, ...stored];
+async function saveBill(bill: Bill, videoConsent: boolean): Promise<void> {
+  const { error } = await db.from("paybills_requests").insert({
+    id: bill.id, category: bill.category, title: bill.title,
+    story: bill.story, tiktok_url: bill.tiktokUrl || null,
+    tiktok_consent: videoConsent, amount_cents: bill.amountCents,
+    due_date: bill.dueDate, status: bill.status,
+    biller_name: bill.billerName, sponsor_count: bill.sponsorCount,
+    created_at: bill.createdAt,
+  });
+  if (error) throw error;
 }
-
-function saveBills(bills: Bill[]): void {
-  writeJsonFile(
-    dataFile,
-    bills.filter(
-      (bill) => bill.status !== "demo"
-    )
-  );
-}
-
-function readPayments(): PaymentRecord[] {
-  return readJsonFile<PaymentRecord[]>(
-    paymentFile,
-    []
-  );
+async function recordPayment(payment: PaymentRecord): Promise<void> {
+  const { error } = await db.from("paybills_payments").upsert({
+    session_id: payment.sessionId, bill_id: payment.billId,
+    amount_cents: payment.amountCents, currency: payment.currency,
+    status: payment.status, created_at: payment.createdAt,
+  }, { onConflict: "session_id", ignoreDuplicates: true });
+  if (error) throw error;
 }
 
 // ============================================
@@ -336,7 +315,7 @@ app.post(
         });
       }
 
-      const bill = readBills().find(
+      const bill = (await readBills()).find(
         (item) => item.id === billId
       );
 
@@ -365,37 +344,14 @@ app.post(
         });
       }
 
-      const payments = readPayments();
-
-      const alreadyProcessed = payments.some(
-        (payment) =>
-          payment.sessionId === session.id
-      );
-
-      if (!alreadyProcessed) {
-        payments.push({
-          sessionId: session.id,
-          billId,
-          amountCents: session.amount_total,
-          currency: "usd",
-          status: "paid",
-          createdAt:
-            new Date().toISOString(),
+      try {
+        await recordPayment({
+          sessionId: session.id, billId, amountCents: session.amount_total,
+          currency: "usd", status: "paid", createdAt: new Date().toISOString(),
         });
-
-        writeJsonFile(
-          paymentFile,
-          payments
-        );
-
-        console.info(
-          "Sponsor payment recorded:",
-          {
-            sessionId: session.id,
-            billId,
-            amountCents: session.amount_total,
-          }
-        );
+      } catch (error) {
+        console.error("Stripe payment persistence failed:", error);
+        return res.status(500).json({ error: "Payment recording failed; retry webhook" });
       }
 
       // IMPORTANT:
@@ -477,23 +433,17 @@ app.get(
 // GET PUBLIC BILLS
 // ============================================
 
-app.get(
-  "/api/bills",
-  (_req: Request, res: Response) => {
-    const bills = readBills()
-      .filter(
-        (bill) =>
-          bill.status === "demo" ||
-          bill.status === "verified"
-      )
+app.get("/api/bills", async (_req: Request, res: Response) => {
+  try {
+    const bills = (await readBills())
+      .filter(bill => bill.status === "demo" || bill.status === "verified")
       .map(publicBill);
-
-    return res.json({
-      bills,
-      total: bills.length,
-    });
+    return res.json({ bills, total: bills.length });
+  } catch (error) {
+    console.error("Bill fetch failed:", error);
+    return res.status(500).json({ error: "Unable to load bills" });
   }
-);
+});
 
 // ============================================
 // SUBMIT A BILL
@@ -501,7 +451,7 @@ app.get(
 
 app.post(
   "/api/bills",
-  (
+  async (
     req: Request,
     res: Response
   ) => {
@@ -598,11 +548,12 @@ app.post(
         new Date().toISOString(),
     };
 
-    const bills = readBills();
-
-    bills.push(bill);
-
-    saveBills(bills);
+    try {
+      await saveBill(bill, videoConsent === true);
+    } catch (error) {
+      console.error("Bill insert failed:", error);
+      return res.status(500).json({ error: "Unable to save bill" });
+    }
 
     return res.status(201).json({
       id: bill.id,
@@ -633,7 +584,7 @@ app.post(
       });
     }
 
-    const bill = readBills().find(
+    const bill = (await readBills()).find(
       (item) => item.id === billId
     );
 
@@ -872,11 +823,4 @@ async function start() {
   );
 }
 
-start().catch((error) => {
-  console.error(
-    "Server startup failed:",
-    error
-  );
-
-  process.exit(1);
-});
+export default app;

@@ -1,6 +1,6 @@
 
 /**
- * PayBills.rent — Paymentus Integration
+ * Billionder — Paymentus Integration
  * Server-side only
  */
 
